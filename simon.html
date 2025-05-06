@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simon Game</title>
+
+  <!-- Bootstrap CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <style>
+    /* Sass-style CSS */
+    body {
+      background: #0d1117;
+      color: #cdd9e5;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+      user-select: none;
+    }
+    h1 {
+      color: #58a6ff;
+      margin-bottom: 1rem;
+      text-align: center;
+      text-shadow: 0 0 6px #58a6ff99;
+    }
+    .simon-container {
+      width: 320px;
+      height: 320px;
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 15px;
+      border-radius: 20px;
+      background: #161b22;
+      box-shadow: 0 0 30px #58a6ff66 inset;
+    }
+    .btn-color {
+      border-radius: 20px;
+      cursor: pointer;
+      box-shadow: 0 6px #0d1117;
+      transition: filter 0.2s ease;
+      user-select: none;
+    }
+    .btn-color:active {
+      filter: brightness(1.2);
+      box-shadow: none;
+      transform: translateY(4px);
+    }
+    /* Four Simon color buttons */
+    #green {
+      background: #2ea44f;
+      box-shadow: 0 6px #1b472a;
+    }
+    #green.active {
+      filter: brightness(1.5);
+      box-shadow: 0 0 15px #2ea44f80;
+    }
+    #red {
+      background: #cf222e;
+      box-shadow: 0 6px #792825;
+    }
+    #red.active {
+      filter: brightness(1.5);
+      box-shadow: 0 0 15px #cf222e80;
+    }
+    #yellow {
+      background: #dbab09;
+      box-shadow: 0 6px #7a6c0c;
+    }
+    #yellow.active {
+      filter: brightness(1.5);
+      box-shadow: 0 0 15px #dbab0980;
+    }
+    #blue {
+      background: #2188ff;
+      box-shadow: 0 6px #104a8b;
+    }
+    #blue.active {
+      filter: brightness(1.5);
+      box-shadow: 0 0 15px #2188ff80;
+    }
+
+    /* Controls section */
+    .controls {
+      margin-top: 2rem;
+      width: 320px;
+      text-align: center;
+      color: #58a6ff;
+      user-select: none;
+    }
+    .status {
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+      min-height: 1.5em;
+      text-shadow: 0 0 10px #58a6ffaa;
+    }
+    button#startBtn {
+      background: #238636;
+      color: #cdd9e5;
+      font-weight: 700;
+      padding: 0.5rem 2rem;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      box-shadow: 0 4px #1a5c27;
+    }
+    button#startBtn:hover:not(:disabled) {
+      background: #2ea44f;
+      box-shadow: 0 6px #1a5c27;
+    }
+    button#startBtn:disabled {
+      background: #4b6b52;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .scoreboard {
+      margin-top: 1rem;
+      font-size: 1.25rem;
+      color: #cdd9e5;
+    }
+    /* Responsive */
+    @media (max-width: 400px) {
+      .simon-container, .controls {
+        width: 90vw;
+        height: 90vw;
+      }
+      .simon-container {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+      }
+      .btn-color {
+        border-radius: 15px;
+        font-size: calc(10px + 1.5vw);
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Simon Game</h1>
+
+  <div class="simon-container" id="simonGame" aria-label="Simon game buttons">
+    <div id="green" class="btn-color" tabindex="0" aria-live="polite" aria-pressed="false" role="button"></div>
+    <div id="red" class="btn-color" tabindex="0" aria-live="polite" aria-pressed="false" role="button"></div>
+    <div id="yellow" class="btn-color" tabindex="0" aria-live="polite" aria-pressed="false" role="button"></div>
+    <div id="blue" class="btn-color" tabindex="0" aria-live="polite" aria-pressed="false" role="button"></div>
+  </div>
+
+  <div class="controls">
+    <div class="status" id="status" aria-live="polite">Press Start to play!</div>
+    <button id="startBtn" aria-label="Start Game">Start</button>
+    <div class="scoreboard">Score: <span id="score">0</span></div>
+  </div>
+
+  <script>
+    (() => {
+      // Sound tones (frequencies in Hz) for each color - you can change to your fav!
+      const TONES = {
+        green: 329.63,
+        red: 261.63,
+        yellow: 220.00,
+        blue: 164.81,
+      };
+
+      const COLORS = ["green", "red", "yellow", "blue"];
+
+      const btns = COLORS.map((color) => document.getElementById(color));
+      const statusEl = document.getElementById("status");
+      const startBtn = document.getElementById("startBtn");
+      const scoreEl = document.getElementById("score");
+
+      let sequence = [];
+      let playerIndex = 0;
+      let playingSequence = false;
+      let gameActive = false;
+      let score = 0;
+
+      // Setup Audio context for sounds
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContext();
+
+      function playTone(color, duration = 600) {
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        osc.frequency.value = TONES[color];
+        osc.type = "sine";
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        osc.start();
+
+        setTimeout(() => {
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioCtx.currentTime + 0.1
+          );
+          osc.stop(audioCtx.currentTime + 0.1);
+        }, duration - 100);
+      }
+
+      // Light up a button with active class for duration
+      function lightUp(color, duration = 600) {
+        const btn = document.getElementById(color);
+        btn.classList.add("active");
+        playTone(color, duration);
+        setTimeout(() => {
+          btn.classList.remove("active");
+        }, duration);
+      }
+
+      // Play the full sequence animations & sounds
+      async function playSequence() {
+        playingSequence = true;
+        for (let color of sequence) {
+          await new Promise((resolve) => {
+            lightUp(color);
+            setTimeout(resolve, 700);
+          });
+        }
+        playingSequence = false;
+      }
+
+      // Add a new color to the sequence randomly
+      function addColorToSequence() {
+        const randIndex = Math.floor(Math.random() * COLORS.length);
+        sequence.push(COLORS[randIndex]);
+      }
+
+      // Reset game variables
+      function resetGame() {
+        sequence = [];
+        playerIndex = 0;
+        score = 0;
+        scoreEl.textContent = score;
+        gameActive = true;
+      }
+
+      // Handle player's button click
+      function handlePlayerInput(color) {
+        if (!gameActive || playingSequence) return; // ignore clicks when not active or showing sequence
+
+        // Play sound & flash
+        lightUp(color, 400);
+
+        if (color === sequence[playerIndex]) {
+          playerIndex++;
+          if (playerIndex === sequence.length) {
+            // Player completed the sequence correctly!
+            score++;
+            scoreEl.textContent = score;
+            statusEl.textContent = "Good! Next round...";
+            playerIndex = 0;
+            // Add new color & replay sequence after short delay
+            setTimeout(() => {
+              addColorToSequence();
+              playSequence().then(() => {
+                statusEl.textContent = "Your turn!";
+              });
+            }, 1000);
+          } else {
+            statusEl.textContent = "Keep going...";
+          }
+        } else {
+          // Wrong input - game over
+          statusEl.textContent = "Wrong move! Game over. Press Start to try again.";
+          gameActive = false;
+          startBtn.disabled = false;
+        }
+      }
+
+      // Event listeners for each button
+      btns.forEach((btn) => {
+        btn.addEventListener("click", () => handlePlayerInput(btn.id));
+        // Support keyboard "Enter" and "Space" to simulate click for accessibility
+        btn.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handlePlayerInput(btn.id);
+          }
+        });
+      });
+
+      // Start button listener
+      startBtn.addEventListener("click", async () => {
+        if (audioCtx.state === "suspended") {
+          // Required to resume audio context on user interaction (browser policy)
+          await audioCtx.resume();
+        }
+        startBtn.disabled = true;
+        resetGame();
+        addColorToSequence();
+        statusEl.textContent = "Watch carefully...";
+        await playSequence();
+        statusEl.textContent = "Your turn!";
+      });
+    })();
+  </script>
+</body>
+</html>
