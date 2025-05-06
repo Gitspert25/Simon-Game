@@ -53,3 +53,4 @@ Feel free to contribute ideas, improvements, or report issues!
 ---
 
 Enjoy the game and keep coding! 💻🌌
+Leave a star if you liked it! ⭐
