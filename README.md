@@ -44,10 +44,6 @@ A classic memory game where you repeat increasingly long sequences of flashing c
 
 ---
 
-Made by **Gitspert25**, young All-Type Engineer and tech enthusiast from Pakistan. 🚀
-
----
-
 Feel free to contribute ideas, improvements, or report issues!
 
 ---
